@@ -6,20 +6,104 @@ output:
 ---
 
 
-## Loading and preprocessing the data
+## ***Loading and preprocessing the data***
 
+This is an R Markdown document for the Coursera module Reproducible Research, self-graded assignment for week 2, which specifies the source data for analysis, repdata_data_activity.zip.  
 
+Using the 'readr' package to read the source data into a large data frame of 17568 obs. of 3 variables.
 
-## What is mean total number of steps taken per day?
+```{r }
+library(readr)
+repdata_data_activity <-read_csv("repdata_data_activity.zip")
+head(repdata_data_activity,5)
+```
+## ***What is mean total number of steps taken per day?***
 
+### Total number of steps taken per day
 
+```{r}
+dailysums<-aggregate(x=repdata_data_activity$steps,by=list(Day=repdata_data_activity$date), simplify=TRUE, FUN=sum)
+Steps <- dailysums$x
+hist(Steps, breaks=15)
+```
 
-## What is the average daily activity pattern?
+### Calculate and report mean and median number of total steps taken per day
+1st value is mean, 2nd value is median.  Median is zero across due to the many intervals that have zero steps.
 
+```{r}
+mean_median<-tapply(repdata_data_activity$steps,repdata_data_activity$date,function(steps){c(mean(steps),median(steps))})
+mean_median_df<-data.frame(matrix(unlist(mean_median),nrow=length(mean_median),byrow=T))
+row.names(mean_median_df) <- names(mean_median)
+colnames(mean_median_df) <-c("mean","median")
+mean_median_df
+```
 
+## ***What is the average daily activity pattern?***
 
-## Imputing missing values
+### Time series of daily average steps
+```{r}
+library(ggplot2)
+mean_median_df_nona <- mean_median_df[!is.na(mean_median_df$mean),]
+ggplot(data=mean_median_df_nona, aes(x=row.names(mean_median_df_nona),y=mean,group=1)) + geom_line(color="gray",size=1) + geom_point() + scale_x_discrete(breaks=c('2012-10-02','2012-10-29','2012-11-29'), labels=c('2012-10-02'='10/2','2012-10-29'='10/29','2012-11-29'='11/29')) + labs(title="Number of Steps, Daily Average October - November 2012", x="dates", y="average") + theme(plot.title = element_text(hjust=.5))
+```
 
+### Time series of the interval average steps 
+```{r}
+mean_interval<-tapply(repdata_data_activity$steps,repdata_data_activity$interval,function(steps){mean(steps,na.rm=TRUE)})
+mean_interval_df<-data.frame(matrix(unlist(mean_interval),nrow=length(mean_interval),byrow=T))
+row.names(mean_interval_df) <- names(mean_interval)
+colnames(mean_interval_df) <-"mean"
+```
+Here's the few top rows:
+```{r}
+head(mean_interval_df)
+```
+Now the time series chart of the average number of steps in each interval across the time period Oct-Nov 2012
+```{r}
+ggplot(data=mean_interval_df,aes(x=c(1:288),y=mean,group=1))+ geom_line(color="gray",size=1) + geom_point() + scale_x_discrete(breaks=NULL)+labs(title="Number of Steps, Interval Average October - November 2012",x="interval", y="average") + theme(plot.title=element_text(hjust=.5))
+```
 
+### The 5-minute interval that contains the maximum number of steps, on average across all the days in the dataset is:
+```{r}
+interval_names<-row.names(mean_interval_df)
+interval_names[which(mean_interval_df$mean==max(mean_interval_df$mean))]
+```
+## ***Imputing missing values***
 
-## Are there differences in activity patterns between weekdays and weekends?
+The total number of missing values in the dataset with NA for steps are: 2304
+```{r}
+length(which(is.na(repdata_data_activity$steps)))
+```
+Fill in missing step values with the average step value for that interval over the Oct to Nov 2012 time period
+
+```{r}
+repdata_data_activity_filledNAs<-repdata_data_activity
+naindexes<-which(is.na(repdata_data_activity$steps)) %% 288
+naindexes[which(naindexes==0)]<- 288
+repdata_data_activity_filledNAs[is.na(repdata_data_activity_filledNAs$steps),1] <- mean_interval_df[naindexes,1]
+```
+
+With the missing data filled in, here's the histogram again:
+```{r}
+dailysums<-aggregate(x=repdata_data_activity_filledNAs$steps,by=list(Day=repdata_data_activity_filledNAs$date), simplify=TRUE, FUN=sum)
+Steps <- dailysums$x
+hist(Steps, breaks=15, main="Histogram of Steps with Missing Data Filled")
+```
+
+The frequency distribution is more definitive at the center. Also, here is the new calculation of the mean and median of total number of steps taken per day.
+
+```{r}
+mean_median_filledNAs<-tapply(repdata_data_activity_filledNAs$steps,repdata_data_activity_filledNAs$date,function(steps){c(mean(steps),median(steps))})
+mean_median_filledNAs_df<-data.frame(matrix(unlist(mean_median_filledNAs),nrow=length(mean_median_filledNAs),byrow=T))
+row.names(mean_median_filledNAs_df) <- names(mean_median_filledNAs)
+colnames(mean_median_filledNAs_df) <-c("mean","median")
+mean_median_filledNAs_df
+```
+The mean and median differences are really just on the NA days. The impact to using the filled dataset is that we can reasonably expect a reduction of average error on estimation since we have the model more biased towards the center now than before. Here are the differences between the mean and median values between original and filled datasets:
+```{r}
+diffs<-mean_median_df - mean_median_filledNAs_df
+diffs
+```
+## ***Are there differences in activity patterns between weekdays and weekends?***
+
+as.numeric(strftime(as.Date('10-1-2012',"%m-%d-%Y"),"%u")) 1 = Monday, 7 = Sunday
