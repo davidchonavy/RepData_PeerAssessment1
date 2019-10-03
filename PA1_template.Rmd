@@ -105,5 +105,31 @@ diffs<-mean_median_df - mean_median_filledNAs_df
 diffs
 ```
 ## ***Are there differences in activity patterns between weekdays and weekends?***
+```{r}
+repdata_data_activity$daytype <- 
+  ifelse(as.numeric(strftime(as.Date(repdata_data_activity$date,"%Y-%m-%d"),"%u")) <=5,"Weekday", "Weekend")
 
-as.numeric(strftime(as.Date('10-1-2012',"%m-%d-%Y"),"%u")) 1 = Monday, 7 = Sunday
+repdata_data_activity_filledNAs$daytype <- ifelse(as.numeric(strftime(as.Date(repdata_data_activity$date,"%Y-%m-%d"),"%u")) <=5,"Weekday", "Weekend")
+
+repdata_data_activity_filledNAs_wdays<-repdata_data_activity_filledNAs[repdata_data_activity_filledNAs$daytype=="Weekday",]
+
+repdata_data_activity_filledNAs_wend<-repdata_data_activity_filledNAs[repdata_data_activity_filledNAs$daytype=="Weekend",]
+
+mean_interval_wk<-tapply(repdata_data_activity_filledNAs_wdays$steps,repdata_data_activity_filledNAs_wdays$interval,function(steps){mean(steps,na.rm=TRUE)})
+mean_interval_wk_df<-data.frame(matrix(unlist(mean_interval_wk),nrow=length(mean_interval_wk),byrow=T))
+row.names(mean_interval_wk_df) <- names(mean_interval_wk)
+colnames(mean_interval_wk_df) <-"mean"
+
+mean_interval_wd<-tapply(repdata_data_activity_filledNAs_wend$steps,repdata_data_activity_filledNAs_wend$interval,function(steps){mean(steps,na.rm=TRUE)})
+mean_interval_wd_df<-data.frame(matrix(unlist(mean_interval_wd),nrow=length(mean_interval_wd),byrow=T))
+row.names(mean_interval_wd_df) <- names(mean_interval_wd)
+colnames(mean_interval_wd_df) <-"mean"
+
+p1<-ggplot(data=mean_interval_wk_df,aes(x=c(1:288),y=mean,group=1))+ geom_line(color="gray",size=1) + geom_point() + scale_x_discrete(breaks=NULL)+labs(title="Weekdays: Number of Steps, Interval Average October - November 2012",x="interval", y="average") + theme(plot.title=element_text(hjust=.5))
+
+p2<-ggplot(data=mean_interval_wd_df,aes(x=c(1:288),y=mean,group=1))+ geom_line(color="gray",size=1) + geom_point() + scale_x_discrete(breaks=NULL)+labs(title="Weekend: Number of Steps, Interval Average October - November 2012",x="interval", y="average") + theme(plot.title=element_text(hjust=.5))
+
+library(gridExtra)
+grid.arrange(p1,p2,ncol=1)
+
+```
